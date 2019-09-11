@@ -23,7 +23,7 @@ fn main() {
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
 fn generate_test_data<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
-    create_dir_all("../testdata/{}/").unwrap();
+    create_dir_all(format!("../ma_titan/testdata/{}/",T::TYPE)).unwrap();
 
     let mut state = Mcg128Xsl64::new(SEED);
     let max_value = (1u64<<exponent) as usize;
@@ -35,11 +35,11 @@ fn generate_test_data<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("../testdata/{}/2^{}.data",T::TYPE, i),&result.to_vec());
+        write_to_file(format!("../ma_titan/testdata/{}/2^{}.data",T::TYPE, i),&result.to_vec());
     }
 
     result.sort();
-    write_to_file(format!("../testdata/{}/2^{}.data",T::TYPE, exponent),&result);
+    write_to_file(format!("../ma_titan/testdata/{}/2^{}.data",T::TYPE, exponent),&result);
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
