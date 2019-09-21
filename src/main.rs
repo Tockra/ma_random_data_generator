@@ -16,12 +16,10 @@ use uint::Typable;
 
 
 const SEED: u128 = 0xcafef00dd15ea5e5;
-const MEAN: f64= 0.0;
-const DEVIATION: f64= 0.0;
 
 fn main() {
     generate_uniform_distribution::<u40>(32);
-    generate_normal_distribution::<u40>(32);
+    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, 0.0, "bereich_komplett");
 }
 
 /// Diese Methode generiert 2^`exponent`viele unterschiedliche sortierte Zahlen vom Typ u40, u48 und u64.AsMut
@@ -49,11 +47,11 @@ fn generate_uniform_distribution<T: Typable + Serialize + Ord + Copy + Into<u64>
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
+fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: String) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
-    create_dir_all(format!("../ma_titan/testdata/normal/{}/",T::TYPE)).unwrap();
+    create_dir_all(format!("../ma_titan/testdata/normal/{}/{}/",name,T::TYPE)).unwrap();
 
-    let normal = Normal::new(MEAN, DEVIATION).unwrap();
+    let normal = Normal::new(mean, deviation).unwrap();
     let max_value = (1u64<<exponent) as usize;
     let mut rng = rand::thread_rng();
     let mut result: Vec<T> = Vec::with_capacity(max_value); 
