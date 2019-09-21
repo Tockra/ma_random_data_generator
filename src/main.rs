@@ -58,7 +58,13 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
     let mut rng = rand::thread_rng();
     let mut result: Vec<T> = Vec::with_capacity(max_value); 
     for _ in 0..max_value {
+        let mut random_val = normal.sample(&mut rng);
+        while random_val < 0.0 || (random_val as u64) > T::max_value().into() {
+            random_val = normal.sample(&mut rng);
+        }
+
         result.push((normal.sample(&mut rng) as u64).into());
+        
     }
 
     // 2^0 wird ausgelassen, da die Verarbeitung von genau einem Element im späteren Programmablauf problematisch wäre.
