@@ -85,11 +85,11 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/normal/{}/2^{}.data",T::TYPE, i),&result.to_vec());
+        write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, i),&result.to_vec());
     }
 
     result.sort();
-    write_to_file(format!("./testdata/normal/{}/2^{}.data",T::TYPE, exponent),&result);
+    write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, exponent),&result);
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
