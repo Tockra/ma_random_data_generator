@@ -9,6 +9,7 @@ use std::io::BufWriter;
 use rand_pcg::Mcg128Xsl64;
 use rand::seq::IteratorRandom;
 use rand_distr::{Normal, Distribution};
+use std::time::Instant;
 use std::cmp::Ord;
 
 use uint::u40;
@@ -18,15 +19,28 @@ use uint::Typable;
 const SEED: u128 = 0xcafef00dd15ea5e5;
 
 fn main() {
+    let gen_start = Instant::now();
+    println!("Starte generierung der zufälligen Werte");
     generate_uniform_distribution::<u40>(32);
-    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, 0.0, "bereich_komplett");
+    println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
+    let gen_normal = Instant::now();
+    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
+    println!("Normalverteilung erzeugt in {} Sekunden",gen_normal.elapsed().as_secs());
+
+    let gen_normal = Instant::now();
+    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
+    println!("Normalverteilung erzeugt in {} Sekunden",gen_normal.elapsed().as_secs());
+
+    
+
+    println!("Gesamtlaufzeit: {} Sekunden",gen_start.elapsed().as_secs());
 }
 
 /// Diese Methode generiert 2^`exponent`viele unterschiedliche sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
 fn generate_uniform_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
-    create_dir_all(format!("../ma_titan/testdata/uniform/{}/",T::TYPE)).unwrap();
+    create_dir_all(format!("./testdata/uniform/{}/",T::TYPE)).unwrap();
 
     let mut state = Mcg128Xsl64::new(SEED);
     let max_value = (1u64<<exponent) as usize;
@@ -38,18 +52,18 @@ fn generate_uniform_distribution<T: Typable + Serialize + Ord + Copy + Into<u64>
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("../ma_titan/testdata/uniform/{}/2^{}.data",T::TYPE, i),&result.to_vec());
+        write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, i),&result.to_vec());
     }
 
     result.sort();
-    write_to_file(format!("../ma_titan/testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result);
+    write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result);
 }
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: String) {
+fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: &str) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
-    create_dir_all(format!("../ma_titan/testdata/normal/{}/{}/",name,T::TYPE)).unwrap();
+    create_dir_all(format!("./testdata/normal/{}/{}/",name,T::TYPE)).unwrap();
 
     let normal = Normal::new(mean, deviation).unwrap();
     let max_value = (1u64<<exponent) as usize;
@@ -71,11 +85,11 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("../ma_titan/testdata/normal/{}/2^{}.data",T::TYPE, i),&result.to_vec());
+        write_to_file(format!("./testdata/normal/{}/2^{}.data",T::TYPE, i),&result.to_vec());
     }
 
     result.sort();
-    write_to_file(format!("../ma_titan/testdata/normal/{}/2^{}.data",T::TYPE, exponent),&result);
+    write_to_file(format!("./testdata/normal/{}/2^{}.data",T::TYPE, exponent),&result);
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
