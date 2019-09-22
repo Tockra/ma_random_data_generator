@@ -75,7 +75,7 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
             random_val = normal.sample(&mut rng);
         }
 
-        result.push((normal.sample(&mut rng) as u64).into());
+        result.push((random_val as u64).into());
         
     }
 
