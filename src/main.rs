@@ -21,15 +21,15 @@ const SEED: u128 = 0xcafef00dd15ea5e5;
 fn main() {
     let gen_start = Instant::now();
     println!("Starte generierung der zufälligen Werte");
-    generate_uniform_distribution::<u40>(32);
+    generate_uniform_distribution::<u40>(30);
     println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
-    let gen_normal = Instant::now();
-    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
+    /*let gen_normal = Instant::now();
+    generate_normal_distribution::<u40>(30, (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
     println!("Normalverteilung erzeugt in {} Sekunden",gen_normal.elapsed().as_secs());
 
     let gen_normal = Instant::now();
-    generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
-    println!("Normalverteilung erzeugt in {} Sekunden",gen_normal.elapsed().as_secs());
+    generate_normal_distribution::<u40>(30, (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
+    println!("Normalverteilung erzeugt in {} Sekunden",gen_normal.elapsed().as_secs());*/
 
     
 
