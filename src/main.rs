@@ -71,7 +71,7 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
     let mut result: Vec<T> = Vec::with_capacity(max_value); 
     for _ in 0..max_value {
         let mut random_val = normal.sample(&mut rng);
-        while random_val < 0.0 || (random_val as u64) > T::max_value().into() {
+        while random_val < 0.0 || (random_val as u64) > T::max_value().into() || result.contains(&T::from(random_val as u64)) {
             random_val = normal.sample(&mut rng);
         }
 
