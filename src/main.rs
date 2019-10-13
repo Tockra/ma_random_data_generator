@@ -37,7 +37,7 @@ fn main() {
         },
         "uniform" => {
             println!("Starte generierung der zufälligen Werte");
-            generate_uniform_distribution::<u40>(32);
+            generate_uniform_distribution::<u40>(5);
             println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         }
         _ => {
@@ -114,6 +114,7 @@ fn write_to_file<T: Typable + Copy + Into<u64>>(name: String, val: &[T]) -> std:
         let v: u64 = v.into();
         buf.write_all(&v.to_le_bytes()[..std::mem::size_of::<T>()])?;
     }
+    buf.flush()?;
     Ok(())
 }
 
