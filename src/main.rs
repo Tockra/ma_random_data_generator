@@ -37,7 +37,7 @@ fn main() {
         },
         "uniform" => {
             println!("Starte generierung der zufälligen Werte");
-            generate_uniform_distribution::<u40>(5);
+            generate_uniform_distribution::<u40>(32);
             println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         }
         _ => {
