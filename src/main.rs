@@ -1,9 +1,6 @@
-extern crate serde;
-extern crate rmp_serde as rmps;
 extern crate rand_distr;
 
-use serde::{Serialize};
-use rmps::{Serializer};
+use std::io::Write;
 use std::fs::{File, create_dir_all};
 use std::io::BufWriter;
 use rand_pcg::Mcg128Xsl64;
@@ -11,6 +8,7 @@ use rand::seq::IteratorRandom;
 use rand_distr::{Normal, Distribution};
 use std::time::Instant;
 use std::cmp::Ord;
+use std::io::Read;
 
 use uint::u40;
 use uint::Typable;
@@ -50,7 +48,7 @@ fn main() {
 
 /// Diese Methode generiert 2^`exponent`viele unterschiedliche sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_uniform_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
+fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
     create_dir_all(format!("./testdata/uniform/{}/",T::TYPE)).unwrap();
 
@@ -64,16 +62,16 @@ fn generate_uniform_distribution<T: Typable + Serialize + Ord + Copy + Into<u64>
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, i),result);
+        write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, i),result).unwrap();
     }
 
     result.sort();
-    write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result[..]);
+    write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result[..]).unwrap();
 }
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: &str) {
+fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: &str) {
 
     // Dieses Bitarray hat für jeden möglichen u40 einen Bit als Eintrag, der angibt, ob dieser Wert bereits gesammelt wurde
     let mut memory = vec![0u64;(T::max_value().into()/64) as usize];
@@ -101,17 +99,48 @@ fn generate_normal_distribution<T: Typable + Serialize + Ord + Copy + Into<u64> 
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, i),result);
+        write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, i),result).unwrap();
     }
 
     result.sort();
-    write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, exponent),&result[..]);
+    write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, exponent),&result[..]).unwrap();
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
-fn write_to_file<T: Typable + Serialize>(name: String, val: &[T]) {
+fn write_to_file<T: Typable + Copy + Into<u64>>(name: String, val: &[T]) -> std::io::Result<()>{
     let mut buf = BufWriter::new(File::create(name).unwrap());
-    val.serialize(&mut Serializer::new(&mut buf)).unwrap();
+    buf.write_all(&val.len().to_le_bytes())?;
+    for &v in val {
+        let v: u64 = v.into();
+        buf.write_all(&v.to_le_bytes()[..std::mem::size_of::<T>()])?;
+    }
+    Ok(())
+}
+
+pub fn read_from_file<T: Typable + From<u64> + Copy>(name: String) -> std::io::Result<Vec<T>> {
+    let mut input = File::open(name.clone())?;
+    let mut lenv = Vec::new();
+    std::io::Read::by_ref(&mut input).take(std::mem::size_of::<usize>() as u64).read_to_end(&mut lenv)?;
+    let mut len: [u8; std::mem::size_of::<usize>()] = [0; std::mem::size_of::<usize>()];
+    for (i,b) in lenv.iter().enumerate() {
+        len[i] = *b;
+    }
+    let len: usize = usize::from_le_bytes(len);
+
+    assert!(len == (std::fs::metadata(name)?.len() as usize - std::mem::size_of::<usize>())/ std::mem::size_of::<T>());
+
+    let mut values: Vec<T> = Vec::with_capacity(len);
+    while values.len() != len {
+        let mut buffer = Vec::with_capacity(std::mem::size_of::<T>());
+        std::io::Read::by_ref(&mut input).take(std::mem::size_of::<T>() as u64).read_to_end(&mut buffer)?;
+        let mut next_value: u64 = 0;
+        for i in 0..buffer.len() {
+            next_value |= (buffer[i] as u64) << (8*i);
+        }
+
+        values.push(T::from(next_value));
+    }
+    Ok(values)
 }
 
 #[inline]
