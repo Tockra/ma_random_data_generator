@@ -41,6 +41,8 @@ fn main() {
             println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         }
         _ => {
+            let x = read_from_file::<u40>("./testdata/uniform/u40/2^32.data".to_string()).unwrap();
+            println!("Values {}", x.len());
             println!("Bitte verwende {} <normal_komplett|normal_viertel|uniform>",args[0]);
         }
     };
