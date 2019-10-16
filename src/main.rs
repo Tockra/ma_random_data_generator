@@ -10,7 +10,7 @@ use std::time::Instant;
 use std::cmp::Ord;
 use std::io::Read;
 
-use uint::u40;
+use uint::{u40,u48};
 use uint::Typable;
 
 
@@ -20,30 +20,42 @@ fn main() {
 
     let args: Vec<String> = std::env::args().collect();
 
-    if args.len() != 2 {
-        println!("Bitte genau ein Argument übergeben!");
+    if args.len() != 4 {
+        println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>", args[0]);
+        return;
     }
 
-    let gen_start = Instant::now();
+    if args[3].parse::<u64>().is_err() {
+        println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>", args[0]);
+        return;
+    }
 
-    match args[1].as_ref() {
+	match args[1].as_ref() {
+		"u40" => stage1::<u40>(args),
+		"u48" => stage1::<u48>(args),
+		"u64" => stage1::<u64>(args),
+		_ => println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>",args[0]),
+    }
+}
+
+fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
+    let gen_start = Instant::now();
+    match args[2].as_ref() {
         "normal_komplett" => {
-            generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
+            generate_normal_distribution::<T>(args[3].parse::<u64>().unwrap(), (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
             println!("Normalverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         },
         "normal_viertel" => {
-            generate_normal_distribution::<u40>(32, (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
+            generate_normal_distribution::<T>(args[3].parse::<u64>().unwrap(), (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
             println!("Normalverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         },
         "uniform" => {
             println!("Starte generierung der zufälligen Werte");
-            generate_uniform_distribution::<u40>(32);
+            generate_uniform_distribution::<T>(args[3].parse::<u64>().unwrap());
             println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         }
         _ => {
-            let x = read_from_file::<u40>("./testdata/uniform/u40/2^32.data".to_string()).unwrap();
-            println!("Values {}", x.len());
-            println!("Bitte verwende {} <normal_komplett|normal_viertel|uniform>",args[0]);
+            println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>",args[0]);
         }
     };
 }
