@@ -3,30 +3,27 @@ extern crate rand_distr;
 use std::io::Write;
 use std::fs::{File, create_dir_all};
 use std::io::BufWriter;
-use rand_pcg::Mcg128Xsl64;
-use rand::seq::IteratorRandom;
-use rand_distr::{Normal, Distribution};
+
+use rand_distr::{Normal, Distribution, Uniform};
 use std::time::Instant;
 use std::cmp::Ord;
 use std::io::Read;
+use std::collections::BTreeSet;
 
 use uint::{u40,u48};
 use uint::Typable;
-
-
-const SEED: u128 = 0xcafef00dd15ea5e5;
 
 fn main() {
 
     let args: Vec<String> = std::env::args().collect();
 
     if args.len() != 4 {
-        println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>", args[0]);
+        println!("Bitte verwende {} <u40|48|u64> <normal|uniform> <max 2er-potenz>", args[0]);
         return;
     }
 
     if args[3].parse::<u64>().is_err() {
-        println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>", args[0]);
+        println!("Bitte verwende {} <u40|48|u64> <normal|uniform> <max 2er-potenz>", args[0]);
         return;
     }
 
@@ -34,19 +31,15 @@ fn main() {
 		"u40" => stage1::<u40>(args),
 		"u48" => stage1::<u48>(args),
 		"u64" => stage1::<u64>(args),
-		_ => println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>",args[0]),
+		_ => println!("Bitte verwende {} <u40|48|u64> <normal|uniform> <max 2er-potenz>",args[0]),
     }
 }
 
 fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
     let gen_start = Instant::now();
     match args[2].as_ref() {
-        "normal_komplett" => {
-            generate_normal_distribution::<T>(args[3].parse::<u64>().unwrap(), (1u64<<39) as f64, (1u64<<37) as f64, "bereich_komplett");
-            println!("Normalverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
-        },
-        "normal_viertel" => {
-            generate_normal_distribution::<T>(args[3].parse::<u64>().unwrap(), (1u64<<39) as f64, (1u64<<35) as f64, "bereich_viertel");
+        "normal" => {
+            generate_normal_distribution::<T>(args[3].parse::<u64>().unwrap());
             println!("Normalverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         },
         "uniform" => {
@@ -55,7 +48,7 @@ fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
             println!("Gleichverteilung erzeugt in {} Sekunden",gen_start.elapsed().as_secs());
         }
         _ => {
-            println!("Bitte verwende {} <u40|48|u64> <normal_komplett|normal_viertel|uniform> <max 2er-potenz>",args[0]);
+            println!("Bitte verwende {} <u40|48|u64> <normal|uniform> <max 2er-potenz>",args[0]);
         }
     };
 }
@@ -65,10 +58,24 @@ fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
 fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
     create_dir_all(format!("./testdata/uniform/{}/",T::TYPE)).unwrap();
-
-    let mut state = Mcg128Xsl64::new(SEED);
+ 
     let max_value = (1u64<<exponent) as usize;
-    let mut result: Vec<T> = (0u64..(T::max_value()).into()).map(|v| T::from(v)).choose_multiple(&mut state, max_value);
+
+    let between = Uniform::from(0u64..(T::max_value()).into());
+    let mut rng = rand::thread_rng();
+
+    let mut memory: BTreeSet<T> = BTreeSet::new(); 
+    let mut result = Vec::with_capacity(max_value);
+    for _ in 0..max_value {
+        let mut random_val = between.sample(&mut rng);
+        while memory.contains(&T::from(random_val)) {
+            random_val = between.sample(&mut rng);
+        }
+
+        let val: T = random_val.into();
+        memory.insert(val);
+        result.push(val);
+    }
 
     // 2^0 wird ausgelassen, da die Verarbeitung von genau einem Element im späteren Programmablauf problematisch wäre.
     for i in 1..exponent {
@@ -80,32 +87,40 @@ fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>
     }
 
     result.sort();
+    result.dedup();
+    assert!(result.len() == max_value);
     write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result[..]).unwrap();
 }
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64, mean: f64, deviation: f64, name: &str) {
-
+fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
+    let mean = (1u64<<std::mem::size_of::<T>()*8-1) as f64;
+    // Laut https://en.wikipedia.org/wiki/Standard_deviation#/media/File:Standard_deviation_diagram.svg deckt die Normalverteilung 
+    // ein Achtel des gültigen Wertebereich ab.
+    let deviation: f64 = mean/32.;
     // Dieses Bitarray hat für jeden möglichen u40 einen Bit als Eintrag, der angibt, ob dieser Wert bereits gesammelt wurde
-    let mut memory = vec![0u64;(T::max_value().into()/64) as usize];
+    //let mut memory = vec![0u64;(T::max_value().into()/64) as usize];
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
-    create_dir_all(format!("./testdata/normal/{}/{}/",name,T::TYPE)).unwrap();
+    create_dir_all(format!("./testdata/normal/{}/",T::TYPE)).unwrap();
 
     let normal = Normal::new(mean, deviation).unwrap();
     let max_value = (1u64<<exponent) as usize;
     let mut rng = rand::thread_rng();
-    let mut result: Vec<T> = Vec::with_capacity(max_value); 
+    let mut memory: BTreeSet<T> = BTreeSet::new(); 
+    let mut result = Vec::with_capacity(max_value);
     for _ in 0..max_value {
         let mut random_val = normal.sample(&mut rng);
-        while random_val < 0.0 || (random_val as u64) > T::max_value().into() || contains(random_val as u64, &memory) {
+        while random_val < 0.0 || (random_val as u64) > T::max_value().into() || memory.contains(&T::from(random_val as u64)) {
             random_val = normal.sample(&mut rng);
         }
 
-        result.push((random_val as u64).into());
-        set_value(random_val as u64, &mut memory);
-        
+        let val: T = (random_val as u64).into();
+        memory.insert(val);
+        result.push(val);
     }
+
+
 
     // 2^0 wird ausgelassen, da die Verarbeitung von genau einem Element im späteren Programmablauf problematisch wäre.
     for i in 1..exponent {
@@ -113,11 +128,14 @@ fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, i),result).unwrap();
+        write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, i),result).unwrap();
     }
 
     result.sort();
-    write_to_file(format!("./testdata/normal/{}/{}/2^{}.data",name, T::TYPE, exponent),&result[..]).unwrap();
+    result.dedup();
+    assert!(result.len() == max_value);
+
+    write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, exponent),&result[..]).unwrap();
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
@@ -156,20 +174,4 @@ pub fn read_from_file<T: Typable + From<u64> + Copy>(name: String) -> std::io::R
         values.push(T::from(next_value));
     }
     Ok(values)
-}
-
-#[inline]
-fn contains(val: u64, memory: &Vec<u64>) -> bool {
-    let index = (val/64) as usize;
-    let in_index = val%64;
-    let mask = 1u64<<(63-in_index);
-    (memory[index] & mask) != 0
-}
-
-#[inline]
-fn set_value(val: u64, memory: &mut Vec<u64>) {
-    let index = (val/64) as usize;
-    let in_index = val%64;
-    let mask = 1u64<<(63-in_index);
-    memory[index] = memory[index] | mask;
 }
