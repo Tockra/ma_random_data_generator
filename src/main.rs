@@ -29,6 +29,7 @@ fn main() {
 
 	match args[1].as_ref() {
 		"u40" => stage1::<u40>(args),
+        "u32" => stage1::<u40>(args),
 		"u48" => stage1::<u48>(args),
 		"u64" => stage1::<u64>(args),
 		_ => println!("Bitte verwende {} <u40|48|u64> <normal|uniform> <max 2er-potenz>",args[0]),
@@ -61,20 +62,19 @@ fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>
  
     let max_value = (1u64<<exponent) as usize;
 
-    let between = Uniform::from(0u64..(T::max_value()).into());
+    let between = Uniform::from(0..(u32::max_value()).into());
     let mut rng = rand::thread_rng();
 
-    let mut memory: BTreeSet<T> = BTreeSet::new(); 
+    let mut memory: BTreeSet<u32> = BTreeSet::new(); 
     let mut result = Vec::with_capacity(max_value);
     for _ in 0..max_value {
         let mut random_val = between.sample(&mut rng);
-        while memory.contains(&T::from(random_val)) {
+        while memory.contains(&random_val) {
             random_val = between.sample(&mut rng);
         }
 
-        let val: T = random_val.into();
-        memory.insert(val);
-        result.push(val);
+        memory.insert(random_val);
+        result.push(random_val);
     }
 
     // 2^0 wird ausgelassen, da die Verarbeitung von genau einem Element im späteren Programmablauf problematisch wäre.
@@ -83,19 +83,19 @@ fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, i),result).unwrap();
+        write_to_file(format!("./testdata/uniform/u32/2^{}.data", i),result, i as u32).unwrap();
     }
 
     result.sort();
     result.dedup();
     assert!(result.len() == max_value);
-    write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result[..]).unwrap();
+    write_to_file(format!("./testdata/uniform/u32/2^{}.data", exponent),&result[..], exponent as u32).unwrap();
 }
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
 fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
-    let mean = (1u64<<std::mem::size_of::<T>()*8-1) as f64;
+    let mean = (1u64<<std::mem::size_of::<u32>()*8-1) as f64;
     // Laut https://en.wikipedia.org/wiki/Standard_deviation#/media/File:Standard_deviation_diagram.svg deckt die Normalverteilung 
     // ein Achtel des gültigen Wertebereich ab.
     let deviation: f64 = mean/32.;
@@ -107,17 +107,16 @@ fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>
     let normal = Normal::new(mean, deviation).unwrap();
     let max_value = (1u64<<exponent) as usize;
     let mut rng = rand::thread_rng();
-    let mut memory: BTreeSet<T> = BTreeSet::new(); 
+    let mut memory: BTreeSet<u32> = BTreeSet::new(); 
     let mut result = Vec::with_capacity(max_value);
     for _ in 0..max_value {
         let mut random_val = normal.sample(&mut rng);
-        while random_val < 0.0 || (random_val as u64) > T::max_value().into() || memory.contains(&T::from(random_val as u64)) {
+        while random_val < 0.0 || (random_val as u32) > u32::max_value() || memory.contains(&(random_val as u32)) {
             random_val = normal.sample(&mut rng);
         }
 
-        let val: T = (random_val as u64).into();
-        memory.insert(val);
-        result.push(val);
+        memory.insert(random_val as u32);
+        result.push(random_val as u32);
     }
 
 
@@ -128,23 +127,34 @@ fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>
         let result = &mut result[..cut];
         result.sort();
 
-        write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, i),result).unwrap();
+        write_to_file(format!("./testdata/normal/u32/2^{}.data", i),result,i as u32).unwrap();
     }
 
     result.sort();
     result.dedup();
     assert!(result.len() == max_value);
 
-    write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, exponent),&result[..]).unwrap();
+    write_to_file(format!("./testdata/normal/u32/2^{}.data", exponent),&result[..],exponent as u32).unwrap();
 }
 
 /// Serializiert den übergebenen Vector und schreibt diesen in eine Datei namens `name`.
-fn write_to_file<T: Typable + Copy + Into<u64>>(name: String, val: &[T]) -> std::io::Result<()>{
+fn write_to_file(name: String, val: &[u32], exp: u32) -> std::io::Result<()>{
+    let copy = val.clone();
+    let v: Vec<u40> = copy.into_iter().map(|&x| u40::from(x)).collect();
+
     let mut buf = BufWriter::new(File::create(name).unwrap());
     buf.write_all(&val.len().to_le_bytes())?;
     for &v in val {
-        let v: u64 = v.into();
-        buf.write_all(&v.to_le_bytes()[..std::mem::size_of::<T>()])?;
+        let v: u32 = v.into();
+        buf.write_all(&v.to_le_bytes()[..std::mem::size_of::<u32>()])?;
+    }
+    buf.flush()?;
+
+    let mut buf = BufWriter::new(File::create(format!("./testdata/normal/u32-u40/2^{}.data",exp)).unwrap());
+    buf.write_all(&val.len().to_le_bytes())?;
+    for &v in val {
+        let v: u32 = v.into();
+        buf.write_all(&v.to_le_bytes()[..std::mem::size_of::<u32>()])?;
     }
     buf.flush()?;
     Ok(())
