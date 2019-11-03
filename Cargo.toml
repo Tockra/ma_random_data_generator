@@ -9,3 +9,4 @@ rand = "0.7.0"
 rand_pcg = "0.2.0"
 rand_distr = "0.2.2"
 uint = { git = "https://github.com/Tockra/uint.git" }
+num = "0.2.0"

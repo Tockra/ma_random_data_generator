@@ -35,7 +35,7 @@ fn main() {
     }
 }
 
-fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
+fn stage1<T: Typable + std::fmt::Display + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
     let gen_start = Instant::now();
     match args[2].as_ref() {
         "normal" => {
@@ -55,7 +55,7 @@ fn stage1<T: Typable + Ord + Copy + Into<u64> + From<u64>>(args: Vec<String>) {
 
 /// Diese Methode generiert 2^`exponent`viele unterschiedliche sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
+fn generate_uniform_distribution<T: Typable + Ord + std::fmt::Display + Copy + Into<u64> + From<u64>>(exponent: u64) {
     // Erzeugt die testdata Directorys, falls diese noch nicht existieren.
     create_dir_all(format!("./testdata/uniform/{}/",T::TYPE)).unwrap();
  
@@ -89,12 +89,13 @@ fn generate_uniform_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>
     result.sort();
     result.dedup();
     assert!(result.len() == max_value);
+    create_input::<T>("uniform",&result[..]);
     write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, exponent),&result[..]).unwrap();
 }
 
 /// Diese Methode generiert 2^`exponent`viele normalverteilte sortierte Zahlen vom Typ u40, u48 und u64.AsMut
 /// Dabei werden Dateien von 2^0 bis hin zu 2^`exponent` angelegt.
-fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>(exponent: u64) {
+fn generate_normal_distribution<T: Typable + num::Bounded + Ord + std::fmt::Display + Copy + Into<u64> + From<u64>>(exponent: u64) {
     let mean = (1u64<<std::mem::size_of::<T>()*8-1) as f64;
     // Laut https://en.wikipedia.org/wiki/Standard_deviation#/media/File:Standard_deviation_diagram.svg deckt die Normalverteilung 
     // ein Achtel des gültigen Wertebereich ab.
@@ -135,6 +136,7 @@ fn generate_normal_distribution<T: Typable + Ord + Copy + Into<u64> + From<u64>>
     result.dedup();
     assert!(result.len() == max_value);
 
+    create_input::<T>("normal",&result[..]);
     write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, exponent),&result[..]).unwrap();
 }
 
@@ -148,6 +150,30 @@ fn write_to_file<T: Typable + Copy + Into<u64>>(name: String, val: &[T]) -> std:
     }
     buf.flush()?;
     Ok(())
+}
+
+fn create_input<E: Typable + Into<u64> + Copy + std::fmt::Display + From<u64> + Into<u64>>(data: &str, values: &[E]) {
+    std::fs::create_dir_all(format!("input/pred/{}/{}/", data, E::TYPE)).unwrap();
+
+    let values_len = values.len();
+
+    let test_values = get_test_values(E::from(values[0].into()+1u64),values[values_len-1]);
+
+    write_to_file(format!("input/pred/{}/{}/min{}_max{}.data",data, E::TYPE, values[0],values[values_len-1]).to_string(), &test_values).unwrap();
+
+}
+
+fn get_test_values<E: Typable + Copy + From<u64> + Into<u64> >(min: E, max: E) -> Vec<E> {
+    let between = Uniform::from(0u64..max.into());
+    let mut rng = rand::thread_rng();
+    let mut result = Vec::with_capacity(100000);
+    for _ in 0..100000 {
+        let random_val = between.sample(&mut rng);
+
+        let val: E = random_val.into();
+        result.push(val);
+    }
+    result
 }
 
 pub fn read_from_file<T: Typable + From<u64> + Copy>(name: String) -> std::io::Result<Vec<T>> {
