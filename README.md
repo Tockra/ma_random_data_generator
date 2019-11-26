@@ -1,5 +1,22 @@
 # random_data_generator
-This projects generates 2^i unique random u40 and u48 values. You can pass the `i` in the main function. You can find the u40 and u48 type here: https://github.com/Tockra/uint.
+Diese Bibliothek erzeugt die u40, u48 und u64 Testdaten in ./testdata/ . Dieser Ordner kann hinterher nach ma_eval_speed und ma_eval_space kopiert werden. Die u40 und u48 Implementierung kommt von hier: https://github.com/Tockra/uint .
 
-You need to generate the `../testdata/{u40,u48}/` folder (which one you need depends on the main method).
-There will the generator generate files with 2^0, 2^1, ..., 2^i random, unique values. You can deserialize it with serde (https://crates.io/crates/serde) and get a Vec<u40> or Vec<u48> (depending on the source). 
+Im Ordner ./testdata werden die Testdaten erzeugt,
+Im Ordner ./input/ werden die Inputdaten für Vorgängeranfragen erzeugt (nach ma_eval_speed kopieren und den vorhandenen Ordner dort ersetzen)
+
+Die Generierung hat folgende Syntax:
+```bash
+cargo run --release <type={u40,u48,u64}> <verteilung={normal,uniform}> <max 2er-potenz>
+```
+
+**<type={u40,u48,u64}>**
+- u40 : 40-Bit-Integer
+- u48 : 48-Bit-Integer
+- u64 : 64-Bit-Integer
+
+**<verteilung={normal,uniform}>**
+- normal: Normalverteilung
+- uniform: Gleichverteilung
+
+**< max 2er-potenz >**
+- Größter 2er-Potenz der Testdaten, die erzeugt werden sollen
