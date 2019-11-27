@@ -82,8 +82,9 @@ fn generate_uniform_distribution<T: Typable + Ord + std::fmt::Display + Copy + I
         let cut = result.len() - (max_value - (1u64<<i) as usize); 
         let result = &mut result[..cut];
         result.sort();
-
+        create_input::<T>("uniform",&result[..]);
         write_to_file(format!("./testdata/uniform/{}/2^{}.data",T::TYPE, i),result).unwrap();
+
     }
 
     result.sort();
@@ -130,6 +131,7 @@ fn generate_normal_distribution<T: Typable + num::Bounded + Ord + std::fmt::Disp
         result.sort();
 
         write_to_file(format!("./testdata/normal/{}/2^{}.data", T::TYPE, i),result).unwrap();
+        create_input::<T>("normal",&result[..]);
     }
 
     result.sort();
